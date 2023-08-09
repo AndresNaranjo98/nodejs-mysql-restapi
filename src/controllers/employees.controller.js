@@ -1,5 +1,7 @@
 import { pool } from '../db.js'
 
+import libExcel from 'xlsx-js-style'
+  
 export const getEmployees = async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -28,6 +30,57 @@ export const getEmployee = async (req, res) => {
     return res.status(500).json({
       message: "Something goes wrong",
     })
+  }
+}
+
+export const getEmployeeXLSX = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT * FROM ininbiosystems.monitoreo"
+    );
+    let workBook = libExcel.utils.book_new()
+    const workSheet = libExcel.utils.json_to_sheet(rows)
+    workSheet["A1"].s = {
+      font: {
+        name: "Calibri",
+        bold: true,
+        color: { rgb: "ff000000" },
+      },
+      fill: {
+        fgColor: { rgb: "ff48c9b0" },
+      },
+    };
+    workSheet["B1"].s = {
+      font: {
+        name: "Calibri",
+        bold: true,
+        color: { rgb: "ff000000" },
+      },
+      fill: {
+        fgColor: { rgb: "ff48c9b0" },
+      },
+    };
+    const rango = libExcel.utils.decode_range(workSheet["!ref"]);
+    const filaInicial = rango.s.r;
+    const columna = 'F';
+    for (let i = filaInicial + 1; i < rango.e.r; i++) {
+      const direccionCelda = columna + i;
+      const celda = workSheet[direccionCelda];
+      const valorCelda = celda.v;
+      if (valorCelda >= 5) {
+        const estiloCelda = { fill: { fgColor: { rgb: "FFFF0000" } } };
+        celda.s = estiloCelda;
+      }
+    }
+    libExcel.utils.book_append_sheet(workBook, workSheet, 'prueba')
+    const excelBuffer = libExcel.write(workBook, { bookType: 'xlsx', type: 'buffer' })
+    res.setHeader('Content-Disposition', 'attachment; filename=pruebaExcel.xlsx')
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.send(excelBuffer)
+  } catch (error) {
+    return res.status(500).json({
+      message: "Something goes wrong",
+    });
   }
 }
 
